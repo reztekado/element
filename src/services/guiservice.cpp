@@ -1174,7 +1174,7 @@ void GuiService::saveSettings()
     saveProperties (settings().getUserSettings());
 }
 
-void GuiService::changeListenerCallback (ChangeBroadcaster* broadcaster)
+void GuiService::changeListenerCallback (juce::ChangeBroadcaster* broadcaster)
 {
     if (broadcaster == &context().devices())
         if (auto* win = mainWindow.get())
