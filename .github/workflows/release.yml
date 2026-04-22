@@ -14,9 +14,9 @@ jobs:
   create-release:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v3
       with:
         name: Element v${{ github.event.inputs.version || github.ref_name }}
         tag_name: ${{ github.event.inputs.version || github.ref_name }}
