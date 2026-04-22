@@ -23,14 +23,14 @@ jobs:
   build-and-test:
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-latest, windows-2022]
+        os: [ubuntu-latest, macos-latest, windows-latest]
       fail-fast: false
     
     runs-on: ${{ matrix.os }}
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
     
@@ -71,10 +71,10 @@ jobs:
     - name: Setup Boost (Linux)
       if: runner.os == 'Linux'
       id: install-boost-linux
-      uses: MarkusJx/install-boost@v2.4.5
+      uses: MarkusJx/install-boost@v2
       with:
-        boost_version: 1.83.0
-        platform_version: 22.04
+        boost_version: 1.89.0
+        platform_version: 24.04
         toolset: gcc
     
     - name: Cache Homebrew (macOS)
