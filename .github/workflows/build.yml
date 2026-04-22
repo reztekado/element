@@ -158,3 +158,13 @@ jobs:
     
     - name: Run tests
       run: ctest --test-dir build --output-on-failure
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: element-${{ matrix.os }}
+        path: |
+          build/element_app_artefacts/Release/
+          build/element_instrument_artefacts/Release/
+          build/element_effect_artefacts/Release/
+          build/element_midi_effect_artefacts/Release/
