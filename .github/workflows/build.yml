@@ -21,34 +21,20 @@ on:
 
 jobs:
   build-and-test:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-      fail-fast: false
-    
-    runs-on: ${{ matrix.os }}
-    
+    runs-on: ubuntu-latest
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
       with:
         submodules: recursive
-    
-    - name: Cache apt packages (Linux)
-      if: runner.os == 'Linux'
-      uses: actions/cache@v4
-      with:
-        path: /var/cache/apt/archives
-        key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/build.yml') }}
-        restore-keys: |
-          ${{ runner.os }}-apt-
-    
-    - name: Install dependencies (Linux)
-      if: runner.os == 'Linux'
+
+    - name: Install dependencies
       run: |
+        sudo add-apt-repository universe
         sudo apt-get update
         sudo apt-get install -y \
-          build-essential \
+          gcc-14 g++-14 \
           cmake \
           ninja-build \
           pandoc \
@@ -67,102 +53,36 @@ jobs:
           libxrender-dev \
           libglu1-mesa-dev \
           mesa-common-dev
-    
-    - name: Setup Boost (Linux)
-      if: runner.os == 'Linux'
-      id: install-boost-linux
+
+    - name: Setup Boost
+      id: install-boost
       uses: MarkusJx/install-boost@v2
       with:
         boost_version: 1.89.0
         platform_version: 24.04
         toolset: gcc
-    
-    - name: Cache Homebrew (macOS)
-      if: runner.os == 'macOS'
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/Library/Caches/Homebrew
-          /usr/local/Cellar
-        key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/build.yml') }}
-        restore-keys: |
-          ${{ runner.os }}-brew-
-    
-    - name: Install dependencies (macOS)
-      if: runner.os == 'macOS'
-      run: |
-        brew install cmake ninja pandoc
-    
-    - name: Setup Boost (macOS)
-      if: runner.os == 'macOS'
-      id: install-boost-macos
-      uses: MarkusJx/install-boost@v2.4.5
-      with:
-        boost_version: 1.83.0
-        platform_version: 11
-        toolset: clang
 
-    - name: Cache Chocolatey (Windows)
-      if: runner.os == 'Windows'
-      uses: actions/cache@v4
-      with:
-        path: ~\AppData\Local\Temp\chocolatey
-        key: ${{ runner.os }}-choco-${{ hashFiles('.github/workflows/build.yml') }}
-        restore-keys: |
-          ${{ runner.os }}-choco-
-
-    - name: Install dependencies (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        choco install cmake ninja pandoc boost-msvc-14.3 -y
-    
-    - name: Setup MSVC environment (Windows)
-      if: runner.os == 'Windows'
-      uses: ilammy/msvc-dev-cmd@v1
-      with:
-        arch: amd64
-    
-    - name: Setup ccache
-      uses: hendrikmuhs/ccache-action@v1.2
-      with:
-        key: ${{ matrix.os }}-ccache-${{ github.sha }}
-        restore-keys: |
-          ${{ matrix.os }}-ccache-
-    
-    - name: Configure CMake (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        cmake -B build -G Ninja `
-          -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl `
-          -DCMAKE_BUILD_TYPE=Release `
-          -DELEMENT_ENABLE_ASIO=ON `
-          -DELEMENT_ENABLE_UPDATER=ON `
-          -DELEMENT_BUILD_PLUGINS=ON `
-          -DBoost_INCLUDE_DIR="C:/local/boost_1_87_0" `
-          -DBoost_LIBRARY_DIRS="C:/local/boost_1_87_0/lib64-msvc-14.3"
-      env:
-        BOOST_ROOT: C:/local/boost_1_87_0
-    
-    - name: Configure CMake (Unix)
-      if: runner.os != 'Windows'
+    - name: Configure CMake
       run: |
         cmake -B build -G Ninja \
+        -DCMAKE_C_COMPILER=gcc-14 \
+        -DCMAKE_CXX_COMPILER=g++-14 \
         -DCMAKE_BUILD_TYPE=Release \
-        -DELEMENT_ENABLE_UPDATER=${{ runner.os == 'macOS' && 'ON' || 'OFF' }} \
+        -DELEMENT_ENABLE_UPDATER=OFF \
         -DELEMENT_BUILD_PLUGINS=ON
       env:
-        BOOST_ROOT: ${{ steps.install-boost-linux.outputs.BOOST_ROOT || steps.install-boost-macos.outputs.BOOST_ROOT }}
-    
+        BOOST_ROOT: ${{ steps.install-boost.outputs.BOOST_ROOT }}
+
     - name: Build
       run: cmake --build build --config Release
-    
+
     - name: Run tests
       run: ctest --test-dir build --output-on-failure
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v7
       with:
-        name: element-${{ matrix.os }}
+        name: element-ubuntu-latest
         path: |
           build/element_app_artefacts/Release/
           build/element_instrument_artefacts/Release/
