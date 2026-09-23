@@ -1,0 +1,99 @@
+name: Build Linux Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Source tag to build"
+        required: true
+        default: "1.2.0"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-linux:
+    name: Build Element for Linux
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          submodules: recursive
+
+      - name: Show source revision
+        run: |
+          echo "Requested ref: ${{ inputs.ref }}"
+          echo "Commit:"
+          git rev-parse HEAD
+          echo "Tag:"
+          git describe --tags --always --exact-match HEAD || true
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            libasound2-dev \
+            libjack-jackd2-dev \
+            ladspa-sdk \
+            libcurl4-openssl-dev \
+            libfontconfig1-dev \
+            libfreetype6-dev \
+            libx11-dev \
+            libxcomposite-dev \
+            libxcursor-dev \
+            libxext-dev \
+            libxinerama-dev \
+            libxrandr-dev \
+            libxrender-dev \
+            libglu1-mesa-dev \
+            mesa-common-dev
+
+      - name: Setup Boost 1.83.0
+        id: boost
+        uses: MarkusJx/install-boost@v2.4.5
+        with:
+          boost_version: 1.83.0
+          platform_version: 22.04
+          toolset: gcc
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DELEMENT_ENABLE_UPDATER=OFF \
+            -DELEMENT_BUILD_PLUGINS=ON \
+            -DELEMENT_BUILD_TESTS=ON
+        env:
+          BOOST_ROOT: ${{ steps.boost.outputs.BOOST_ROOT }}
+
+      - name: Build Element
+        run: |
+          cmake --build build --config Release
+
+      - name: Run tests
+        run: |
+          ctest --test-dir build --output-on-failure
+
+      - name: Build Linux package
+        run: |
+          cmake --build build --target installer --config Release
+
+      - name: Show generated package
+        run: |
+          find build -type f -name "*.deb" -print
+
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Element-Linux-${{ inputs.ref }}
+          path: build/*.deb
+          if-no-files-found: error
+          retention-days: 30
+          
